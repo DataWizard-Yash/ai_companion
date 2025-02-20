@@ -1,60 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Companion</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 50px auto;
-            text-align: center;
-        }
-        #chat-box {
-            border: 1px solid #ccc;
-            padding: 15px;
-            height: 400px;
-            overflow-y: scroll;
-            background-color: #f9f9f9;
-        }
-        input {
-            width: 80%;
-            padding: 10px;
-        }
-        button {
-            padding: 10px 20px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Companion</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      text-align: center;
+    }
+    #chat-box {
+      border: 1px solid #ccc;
+      padding: 15px;
+      height: 400px;
+      overflow-y: scroll;
+      background-color: #f9f9f9;
+      margin-top: 20px;
+    }
+    input {
+      width: 80%;
+      padding: 10px;
+    }
+    button {
+      padding: 10px 20px;
+    }
+    /* Style for the relationship selection overlay */
+    #relationship-selection {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #relationship-selection select, #relationship-selection button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 10px;
+    }
+  </style>
 </head>
 <body>
-    <h1>AI Companion</h1>
+  <h1>AI Companion</h1>
+
+  <!-- Relationship selection overlay -->
+  <div id="relationship-selection">
+    <h2>Select Relationship Preference</h2>
+    <select id="relationship-dropdown">
+      <option value="Girlfriend">Girlfriend</option>
+      <option value="Mentor">Mentor</option>
+      <option value="Friend">Friend</option>
+    </select>
+    <button onclick="startChat()">Start Chat</button>
+  </div>
+
+  <!-- Chat interface -->
+  <div id="chat-interface" style="display: none;">
     <div id="chat-box"></div>
     <input type="text" id="user-input" placeholder="Ask your companion..." />
     <button onclick="sendMessage()">Send</button>
+  </div>
 
-    <script>
-        async function sendMessage() {
-            const input = document.getElementById("user-input").value;
-            const chatBox = document.getElementById("chat-box");
+  <script>
+    // Global variable to store relationship preference
+    let relationshipPreference = null;
 
-            if (input.trim() === "") return;
+    function startChat() {
+      const dropdown = document.getElementById("relationship-dropdown");
+      relationshipPreference = dropdown.value;
+      document.getElementById("relationship-selection").style.display = "none";
+      document.getElementById("chat-interface").style.display = "block";
+    }
 
-            chatBox.innerHTML += `<p><strong>You:</strong> ${input}</p>`;
+    async function sendMessage() {
+      const inputElem = document.getElementById("user-input");
+      const input = inputElem.value;
+      const chatBox = document.getElementById("chat-box");
 
-            const response = await fetch("/chat", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ message: input })
-            });
+      if (input.trim() === "") return;
 
-            const result = await response.json();
-            chatBox.innerHTML += `<p><strong>AI Companion:</strong> ${result.response}</p>`;
-            chatBox.scrollTop = chatBox.scrollHeight;
-            document.getElementById("user-input").value = "";
-        }
-    </script>
+      chatBox.innerHTML += `<p><strong>You:</strong> ${input}</p>`;
+
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ message: input, relationship: relationshipPreference })
+      });
+
+      const result = await response.json();
+      chatBox.innerHTML += `<p><strong>AI Companion:</strong> ${result.response}</p>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+      inputElem.value = "";
+    }
+  </script>
 </body>
 </html>
