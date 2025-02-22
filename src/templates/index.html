@@ -4,46 +4,106 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1 {
+      margin-top: 40px;
+      color: #333;
+    }
+    /* Chat interface styling */
+    #chat-interface {
+      width: 100%;
       max-width: 600px;
-      margin: 50px auto;
-      text-align: center;
+      margin: 20px;
     }
     #chat-box {
-      border: 1px solid #ccc;
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
       padding: 15px;
       height: 400px;
-      overflow-y: scroll;
-      background-color: #f9f9f9;
-      margin-top: 20px;
+      overflow-y: auto;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 15px;
     }
-    input {
-      width: 80%;
-      padding: 10px;
+    #chat-box p {
+      margin: 10px 0;
+      line-height: 1.4;
+    }
+    #chat-box p strong {
+      color: #555;
+    }
+    #user-input {
+      width: calc(100% - 20px);
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+      outline: none;
+      margin-bottom: 10px;
     }
     button {
       padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      background-color: #007bff;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
     }
-    /* Style for the relationship selection overlay */
+    button:hover {
+      background-color: #0056b3;
+    }
+    /* Relationship selection overlay */
     #relationship-selection {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.6);
       display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
       z-index: 1000;
     }
-    #relationship-selection select, #relationship-selection button {
-      padding: 10px;
+    #relationship-selection .card {
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      width: 90%;
+      max-width: 400px;
+    }
+    #relationship-selection h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    #relationship-selection select {
+      width: 100%;
+      padding: 12px;
       font-size: 16px;
-      margin: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-bottom: 20px;
     }
   </style>
 </head>
@@ -52,13 +112,15 @@
 
   <!-- Relationship selection overlay -->
   <div id="relationship-selection">
-    <h2>Select Relationship Preference</h2>
-    <select id="relationship-dropdown">
-      <option value="Girlfriend">Girlfriend</option>
-      <option value="Mentor">Mentor</option>
-      <option value="Friend">Friend</option>
-    </select>
-    <button onclick="startChat()">Start Chat</button>
+    <div class="card">
+      <h2>Select Relationship Preference</h2>
+      <select id="relationship-dropdown">
+        <option value="Girlfriend">Girlfriend</option>
+        <option value="Mentor">Mentor</option>
+        <option value="Friend">Friend</option>
+      </select>
+      <button onclick="startChat()">Start Chat</button>
+    </div>
   </div>
 
   <!-- Chat interface -->
