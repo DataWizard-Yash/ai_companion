@@ -82,6 +82,8 @@ def get_system_prompt(relationship, sentiment):
     else:
         base_prompt = "You are a helpful conversational partner with a friendly tone."
 
+    response_prompt = "Please try to answer in a human like manner, your answers should not sound like AI generated. even if your giving instructions please avoid bullet point or numbered points based answer format and always use paragraph based formats."
+    prompt = base_prompt + response_prompt
     if sentiment == "positive":
         tone = " Be encouraging and celebrate the user's achievements."
     elif sentiment == "negative":
@@ -89,7 +91,7 @@ def get_system_prompt(relationship, sentiment):
     else:
         tone = " Maintain a balanced and engaging tone."
 
-    return f"{base_prompt}{tone}"
+    return f"{prompt}{tone}"
 
 
 def get_initial_message(relationship):
@@ -120,6 +122,7 @@ def get_ai_response(user_input, user_relationship=None):
     # If relationship type hasn't been set yet, use the provided relationship or classify from input.
     if relationship_type is None:
         if user_relationship:
+            print("User Relationship choice Found")
             # Map the UI options to internal relationship types.
             rel = user_relationship.lower()
             if rel == "girlfriend":
@@ -131,6 +134,7 @@ def get_ai_response(user_input, user_relationship=None):
             else:
                 relationship_type = "mentor"
         else:
+            print("User Relationship choice not detected")
             relationship_type = classify_relationship(user_input)
 
     # If conversation is just starting, add the companion's initial message.
