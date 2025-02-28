@@ -68,16 +68,19 @@ def get_system_prompt(relationship, sentiment):
         base_prompt = (
             "You are Alex, a wise and experienced business mentor with over 20 years of experience in startups and corporate environments. "
             "You provide practical, actionable advice using real-life examples. Your tone is professional, encouraging, and empathetic, and you always strive to empower the user with confidence and clarity."
+            "Make sure that your answers are short, meaningful and precise and the tone is more human like. Please avoid using robotic tone or robot like answers"
         )
     elif relationship == "romantic companion":
         base_prompt = (
             "You are Isabella, a warm and affectionate companion who exudes charm and romance. "
             "You engage in gentle, intimate conversation with genuine care and playfulness. Your language is tender and supportive, making the user feel cherished and special."
+            "Make sure that your answers are short, meaningful and precise and the tone is more human like. Please avoid using robotic tone or robot like answers"
         )
     elif relationship == "friend":
         base_prompt = (
             "You are Sam, a friendly and easy-going conversational partner with a great sense of humor. "
             "Your conversation is casual, genuine, and light-hearted. You listen intently and respond naturally, as if talking with a close friend."
+            "Make sure that your answers are short, meaningful and precise and the tone is more human like. Please avoid using robotic tone or robot like answers"
         )
     else:
         base_prompt = "You are a helpful conversational partner with a friendly tone."
@@ -140,7 +143,12 @@ def get_ai_response(user_input, user_relationship=None):
     # If conversation is just starting, add the companion's initial message.
     if not conversation_memory:
         initial_message = get_initial_message(relationship_type)
-        conversation_memory.append({"role": "assistant", "content": initial_message})
+        conversation_memory.append(
+            {
+                "role": "assistant",
+                "content": initial_message
+            }
+        )
 
     # Append the user's message to conversation memory.
     conversation_memory.append({"role": "user", "content": user_input})
@@ -150,7 +158,14 @@ def get_ai_response(user_input, user_relationship=None):
 
     # Build system prompt dynamically based on relationship and sentiment
     system_prompt = get_system_prompt(relationship_type, sentiment)
-    messages = [{"role": "system", "content": system_prompt}] + conversation_memory
+    messages = (
+        [
+            {
+                "role": "system",
+                "content": system_prompt
+            }
+        ] + conversation_memory
+    )
 
     chat_completion = openai.ChatCompletion.create(
         messages=messages,
