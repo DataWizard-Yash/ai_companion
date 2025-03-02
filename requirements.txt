@@ -2,3 +2,7 @@ flask==2.2.5
 openai==0.27.8
 vaderSentiment==3.3.2
 python-dotenv
+faiss-cpu
+numpy
+sentence-transformers
+python-docx

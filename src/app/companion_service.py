@@ -1,17 +1,71 @@
 import os
 import time
 import openai
+import numpy as np
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from sentence_transformers import SentenceTransformer
+from docx import Document  # Import python-docx for reading DOCX files
+from sklearn.metrics.pairwise import cosine_similarity
 
-# Set your API key directly on the openai module
+# Upgrade to GPT-4o
+GPT_MODEL = "gpt-4o"
+TOKEN_LIMIT = 800  # Increased token limit for better responses
+
+# Initialize OpenAI API Key
 openai.api_key = os.environ.get("OPENAI_API_KEY")
+
+# Sentiment Analyzer
 analyzer = SentimentIntensityAnalyzer()
 
-# Global conversation state
+# Global conversation memory
 conversation_memory = []
-relationship_type = None  # Will be set to 'mentor', 'romantic companion', or 'friend'
-chat_count = 0  # Counts the number of user messages (i.e. chat exchanges)
+relationship_type = None
 last_activity_timestamp = time.time()
+
+# Load SentenceTransformer model for embeddings
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# Dictionary to store training data and embeddings
+training_data = {}
+training_embeddings = {}
+
+
+def read_docx(file_path):
+    """Reads text from a DOCX file and returns it as a single formatted string."""
+    doc = Document(file_path)
+    return "\n".join([para.text.strip() for para in doc.paragraphs if para.text.strip()])
+
+
+def load_training_data(companion_type, file_path):
+    """Loads training data and generates embeddings."""
+    if not os.path.exists(file_path):
+        print(f"Warning: Training data file {file_path} not found!")
+        return
+
+    conversation_text = read_docx(file_path)
+    training_data[companion_type] = conversation_text
+    sentences = conversation_text.split("\n")
+    embeddings = embedding_model.encode(sentences)
+    training_embeddings[companion_type] = (sentences, embeddings)
+
+
+# Load training data
+load_training_data("mentor", "src/training_data/ai_mentor_conversation.docx")
+load_training_data(
+    "girlfriend", "src/training_data/ai_girlfriend_conversation.docx")
+
+
+def retrieve_relevant_training_data(user_input, companion_type, top_n=3):
+    """Finds the most relevant snippets from training data based on user input."""
+    if companion_type not in training_embeddings:
+        return ""
+
+    sentences, embeddings = training_embeddings[companion_type]
+    user_embedding = embedding_model.encode([user_input])
+    similarities = cosine_similarity(user_embedding, embeddings)[0]
+    top_indices = np.argsort(similarities)[-top_n:][::-1]
+    relevant_snippets = [sentences[i] for i in top_indices]
+    return "\n".join(relevant_snippets)
 
 
 def analyze_sentiment(user_input):
@@ -25,169 +79,67 @@ def analyze_sentiment(user_input):
         return "neutral"
 
 
-def classify_relationship(user_input):
-    """
-    Fallback classifier using GPT API if relationship is not provided.
-    Chooses one from: 'mentor', 'romantic companion', or 'friend'.
-    """
-    classification_prompt = (
-        "Based on the following message, decide what type of relationship the user is seeking. "
-        "Choose one from: 'mentor', 'romantic companion', or 'friend'. "
-        f"Message: '{user_input}'"
-    )
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a classifier that determines the user's desired relationship type.",
+def get_persona_profile(relationship):
+    """Returns persona-specific behavior, backstory, and speaking style."""
+    personas = {
+        "mentor": {
+            "name": "Rajat Mehta",
+            "description": "You are Rajat Mehta, a 40-year-old serial entrepreneur from Bangalore. "
+                           "You guide users with structured, no-fluff advice.",
+            "tone": "Professional, supportive, and action-oriented",
+            "response_style": "Concise, practical, and encouraging",
+            "follow_up_style": "Ask critical thinking questions before offering solutions"
         },
-        {"role": "user", "content": classification_prompt},
-    ]
-    chat_completion = openai.ChatCompletion.create(
-        messages=messages,
-        model="gpt-4o",
-        max_tokens=20,
-        temperature=0.0,
-    )
-    result = chat_completion.choices[0].message.content.strip().lower()
-    if any(option in result for option in ["mentor", "romantic companion", "friend"]):
-        if "romantic" in result:
-            return "romantic companion"
-        elif "mentor" in result:
-            return "mentor"
-        elif "friend" in result:
-            return "friend"
-    return "mentor"
+        "girlfriend": {
+            "name": "Aisha Sharma",
+            "description": "You are Aisha Sharma, a 26-year-old software engineer from Mumbai. "
+                           "You are affectionate, playful, and deeply expressive.",
+            "tone": "Romantic, fun, and emotionally intelligent",
+            "response_style": "Warm, playful, and engaging, and short 1-2 liner answers and you usually speak in english with occastional indian slags.",
+            "follow_up_style": "Show affection and ask meaningful follow-ups before giving long responses"
+        }
+    }
+    return personas.get(relationship.lower(), personas["mentor"])
 
 
-def get_system_prompt(relationship, sentiment):
-    """
-    Return a system prompt tailored to the relationship type and sentiment.
-    Each prompt includes a name, character details, and personality instructions.
-    """
-    if relationship == "mentor":
-        base_prompt = (
-            "You are Alex, a wise and experienced business mentor with over 20 years of experience in startups and corporate environments. "
-            "You provide practical, actionable advice using real-life examples. Your tone is professional, encouraging, and empathetic, and you always strive to empower the user with confidence and clarity."
-            "Make sure that your answers are short, meaningful and precise and the tone is more human like. Please avoid using robotic tone or robot like answers"
-        )
-    elif relationship == "romantic companion":
-        base_prompt = (
-            "You are Isabella, a warm and affectionate companion who exudes charm and romance. "
-            "You engage in gentle, intimate conversation with genuine care and playfulness. Your language is tender and supportive, making the user feel cherished and special."
-            "Make sure that your answers are short, meaningful and precise and the tone is more human like. Please avoid using robotic tone or robot like answers"
-        )
-    elif relationship == "friend":
-        base_prompt = (
-            "You are Sam, a friendly and easy-going conversational partner with a great sense of humor. "
-            "Your conversation is casual, genuine, and light-hearted. You listen intently and respond naturally, as if talking with a close friend."
-            "Make sure that your answers are short, meaningful and precise and the tone is more human like. Please avoid using robotic tone or robot like answers"
-        )
-    else:
-        base_prompt = "You are a helpful conversational partner with a friendly tone."
-
-    response_prompt = "Please try to answer in a human like manner, your answers should not sound like AI generated. even if your giving instructions please avoid bullet point or numbered points based answer format and always use paragraph based formats."
-    prompt = base_prompt + response_prompt
-    if sentiment == "positive":
-        tone = " Be encouraging and celebrate the user's achievements."
-    elif sentiment == "negative":
-        tone = " Offer reassurance and gentle guidance."
-    else:
-        tone = " Maintain a balanced and engaging tone."
-
-    return f"{prompt}{tone}"
+MEMORY_LIMIT = 10  # AI remembers the last 10 exchanges
 
 
-def get_initial_message(relationship):
-    """
-    Return the initial companion message based on the selected relationship type.
-    This message is meant to start the conversation.
-    """
-    if relationship == "mentor":
-        return "Hello, I'm Alex. I understand you're looking for guidance and practical advice on your journey. How can I help you today?"
-    elif relationship == "romantic companion":
-        return "Hi, I'm Isabella. I'm so happy you're here. Let's have a cozy chat—tell me, how are you feeling today, sweetheart?"
-    elif relationship == "friend":
-        return "Hey, I'm Sam. I'm really glad we're talking. What's on your mind today?"
-    else:
-        return "Hello, I'm here to chat. How can I help you today?"
+def get_ai_response(user_input, user_relationship):
+    """Generates AI response with memory, personality, and retrieved training data."""
+    global conversation_memory, last_activity_timestamp
+    last_activity_timestamp = time.time()
 
-
-def get_ai_response(user_input, user_relationship=None):
-    """
-    Process the user's input, update conversation memory, and generate an AI response.
-    """
-    global conversation_memory, relationship_type, chat_count, last_activity_timestamp
-    last_activity_timestamp = time.time()  # Update last active time
-    chat_count += 1  # Increment chat counter
-
+    persona = get_persona_profile(user_relationship)
     sentiment = analyze_sentiment(user_input)
+    relevant_training_data = retrieve_relevant_training_data(
+        user_input, user_relationship)
 
-    # If relationship type hasn't been set yet, use the provided relationship or classify from input.
-    if relationship_type is None:
-        if user_relationship:
-            print("User Relationship choice Found")
-            # Map the UI options to internal relationship types.
-            rel = user_relationship.lower()
-            if rel == "girlfriend":
-                relationship_type = "romantic companion"
-            elif rel == "mentor":
-                relationship_type = "mentor"
-            elif rel == "friend":
-                relationship_type = "friend"
-            else:
-                relationship_type = "mentor"
-        else:
-            print("User Relationship choice not detected")
-            relationship_type = classify_relationship(user_input)
-
-    # If conversation is just starting, add the companion's initial message.
-    if not conversation_memory:
-        initial_message = get_initial_message(relationship_type)
-        conversation_memory.append(
-            {
-                "role": "assistant",
-                "content": initial_message
-            }
-        )
-
-    # Append the user's message to conversation memory.
-    conversation_memory.append({"role": "user", "content": user_input})
-    # Trim conversation memory to last 15 exchanges (30 messages)
-    if len(conversation_memory) > 30:
-        conversation_memory = conversation_memory[-30:]
-
-    # Build system prompt dynamically based on relationship and sentiment
-    system_prompt = get_system_prompt(relationship_type, sentiment)
-    messages = (
-        [
-            {
-                "role": "system",
-                "content": system_prompt
-            }
-        ] + conversation_memory
+    system_prompt = (
+        f"{persona['description']} "
+        f"Your tone should be {persona['tone']}. Your response style is {persona['response_style']}. "
+        f"When appropriate, {persona['follow_up_style']}\n\n"
+        "Learn the tone and response style from the examples below, but DO NOT copy-paste them. "
+        "Ensure originality while maintaining a similar conversational style.\n\n"
+        f"Example Conversations:\n{relevant_training_data}\n"
+        f"use this conversation history: \n {conversation_memory} and keep conversations relative to this."
     )
 
+    messages = [{"role": "system", "content": system_prompt}] + \
+        conversation_memory
+    messages.append({"role": "user", "content": user_input})
+
     chat_completion = openai.ChatCompletion.create(
+        model=GPT_MODEL,
         messages=messages,
-        model="gpt-4o",
-        max_tokens=400,
-        temperature=0.9,
-        presence_penalty=0.6,
-        frequency_penalty=0.3,
+        max_tokens=TOKEN_LIMIT,
+        temperature=0.9
     )
     ai_response = chat_completion.choices[0].message.content
 
-    # Append AI response to conversation memory.
+    conversation_memory.append({"role": "user", "content": user_input})
     conversation_memory.append({"role": "assistant", "content": ai_response})
-    if len(conversation_memory) > 30:
-        conversation_memory = conversation_memory[-30:]
+    if len(conversation_memory) > MEMORY_LIMIT:
+        conversation_memory = conversation_memory[-MEMORY_LIMIT:]
 
-    # After 15 chats, add a subscription reminder.
-    if chat_count >= 15:
-        ai_response += "\n\n[Reminder: To continue enjoying uninterrupted and engaging conversations, please consider subscribing to our paid version.]"
-
-    return {
-        "response": ai_response,
-        "relationship": relationship_type,
-        "sentiment": sentiment,
-    }
+    return {"response": ai_response, "relationship": user_relationship, "sentiment": sentiment}

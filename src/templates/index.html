@@ -73,6 +73,7 @@
       font-size: 1.5rem;
       margin-bottom: 1.5rem;
       color: #1a202c;
+      text-align: center;
     }
 
     select {
@@ -104,6 +105,7 @@
       border-radius: 16px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       overflow: hidden;
+      display: none;
     }
 
     #chat-box {
@@ -175,17 +177,9 @@
       background: #2c5282;
     }
 
-    button:active {
-      transform: translateY(1px);
-    }
-
     /* Custom scrollbar */
     #chat-box::-webkit-scrollbar {
       width: 8px;
-    }
-
-    #chat-box::-webkit-scrollbar-track {
-      background: #f1f1f1;
     }
 
     #chat-box::-webkit-scrollbar-thumb {
@@ -193,33 +187,6 @@
       border-radius: 4px;
     }
 
-    #chat-box::-webkit-scrollbar-thumb:hover {
-      background: #a0aec0;
-    }
-
-    /* Loading indicator */
-    .typing-indicator {
-      display: flex;
-      gap: 4px;
-      padding: 0.5rem;
-      margin-bottom: 1rem;
-    }
-
-    .dot {
-      width: 8px;
-      height: 8px;
-      background: #cbd5e0;
-      border-radius: 50%;
-      animation: bounce 1.4s infinite ease-in-out;
-    }
-
-    .dot:nth-child(1) { animation-delay: -0.32s; }
-    .dot:nth-child(2) { animation-delay: -0.16s; }
-
-    @keyframes bounce {
-      0%, 80%, 100% { transform: scale(0); }
-      40% { transform: scale(1); }
-    }
   </style>
 </head>
 <body>
@@ -231,18 +198,17 @@
 
     <div id="relationship-selection">
       <div class="card">
-        <h2>Choose Your Companion Type</h2>
+        <h2>Choose Your Companion</h2>
         <select id="relationship-dropdown">
-          <option value="">Select a relationship type...</option>
+          <option value="">Select your companion...</option>
           <option value="Girlfriend">Girlfriend</option>
           <option value="Mentor">Mentor</option>
-          <option value="Friend">Friend</option>
         </select>
-        <button onclick="startChat()">Start Chatting</button>
+        <button onclick="startChat()">Start Chat</button>
       </div>
     </div>
 
-    <div id="chat-interface" style="display: none;">
+    <div id="chat-interface">
       <div id="chat-box"></div>
       <div class="input-container">
         <input 
@@ -258,12 +224,11 @@
 
   <script>
     let relationshipPreference = null;
-    let isTyping = false;
 
     function startChat() {
       const dropdown = document.getElementById("relationship-dropdown");
       if (!dropdown.value) {
-        alert("Please select a relationship type");
+        alert("Please select a companion type");
         return;
       }
       
@@ -271,7 +236,6 @@
       document.getElementById("relationship-selection").style.display = "none";
       document.getElementById("chat-interface").style.display = "block";
       
-      // Add welcome message
       addMessage(`Welcome! I'll be your ${relationshipPreference.toLowerCase()}. How can I help you today?`, 'ai');
     }
 
@@ -284,61 +248,23 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    function addTypingIndicator() {
-      const chatBox = document.getElementById("chat-box");
-      const indicator = document.createElement("div");
-      indicator.className = "typing-indicator";
-      indicator.innerHTML = `
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
-      `;
-      chatBox.appendChild(indicator);
-      chatBox.scrollTop = chatBox.scrollHeight;
-      return indicator;
-    }
-
     async function sendMessage() {
-      if (isTyping) return;
-
       const inputElem = document.getElementById("user-input");
       const input = inputElem.value.trim();
-
       if (input === "") return;
 
       addMessage(input, 'user');
       inputElem.value = "";
-      isTyping = true;
 
-      const typingIndicator = addTypingIndicator();
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input, relationship: relationshipPreference })
+      });
 
-      try {
-        const response = await fetch("/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ 
-            message: input, 
-            relationship: relationshipPreference 
-          })
-        });
-
-        const result = await response.json();
-        typingIndicator.remove();
-        addMessage(result.response, 'ai');
-      } catch (error) {
-        typingIndicator.remove();
-        addMessage("Sorry, I couldn't process your message. Please try again.", 'ai');
-      } finally {
-        isTyping = false;
-      }
+      const result = await response.json();
+      addMessage(result.response, 'ai');
     }
-
-    // Focus input when chat starts
-    document.getElementById("chat-interface").addEventListener("display", () => {
-      document.getElementById("user-input").focus();
-    });
   </script>
 </body>
 </html>
